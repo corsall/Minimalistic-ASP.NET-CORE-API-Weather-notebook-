@@ -1,0 +1,172 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Weather Api</title>
+    <link rel="stylesheet" type="text/css" href="https://localhost:7232/css"/>
+</head>
+<body>
+    <h1>Weather notebook</h1>
+    <div>
+        <input type="hidden" id="weatherId" />
+        <p>
+            Todays temperature <br />
+            <input type="number" id="temp" />
+        </p>
+        <p>
+            Todays humidity <br />
+            <input type="number" id="humidity" />
+        </p>
+        <p>
+            <button id="saveBtn">Save</button>
+            <button id="resetBtn">Reset</button>
+        </p>
+    </div>
+    <table>
+        <thead><tr><th>Id</th><th>Temp °C</th><th>Humidity %</th><th></th><th>Images</th></tr></thead>
+        <tbody>
+        </tbody>
+    </table>
+    <script>
+        document.getElementById("resetBtn").addEventListener("click", () => reset());
+        function reset() {
+            document.getElementById("weatherId").value = "";
+            document.getElementById("temp").value = "";
+            document.getElementById("humidity").value = "";
+        }
+        document.getElementById("saveBtn").addEventListener("click",async () => {
+            const id = document.getElementById("weatherId").value;
+            const temp = document.getElementById("temp").value;
+            const humidity = document.getElementById("humidity").value;
+            if (id === "")
+                await createWeather(temp, humidity);
+            else
+                await editWeather(id, temp, humidity);
+            reset();
+        });
+
+        async function createWeather(weatherTemp, weatherHumidity) {
+            const response = await fetch("weather", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    temp: parseInt(weatherTemp, 10),
+                    humidity: parseInt(weatherHumidity, 10)
+                })    
+            });
+            if (response.ok === true) {
+                const weather = await response.json();
+                document.querySelector("tbody").append(row(weather));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        async function editWeather(weatherId, weatherTemp, weatherHumidity) {
+            const response = await fetch("weather", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: weatherId,
+                    temp: parseInt(weatherTemp, 10),
+                    humidity: parseInt(weatherHumidity, 10)
+                })
+            });
+            if (response.ok === true) {
+                const weather = await response.json();
+                document.querySelector(`tr[data-rowid='${weather.id}']`).replaceWith(row(weather));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        async function getWeathers(){
+            const response = await fetch("weather", {
+                method: "GET",
+                headers: { "Accept": "application/json"}
+            });
+            if (response.ok === true) {
+                const weathers = await response.json();
+                const rows = document.querySelector("tbody");
+                weathers.forEach(weather => rows.append(row(weather)));
+            }
+        }
+
+        async function getWeather(id) {
+            const response = await fetch(`weather/${id}`, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok === true) {
+                const weather = await response.json();
+                document.getElementById("weatherId").value = weather.id;
+                document.getElementById("temp").value = weather.temp;
+                document.getElementById("humidity").value = weather.humidity;
+            }
+        }
+
+        async function deleteWeather(id) {
+            const response = await fetch(`weather/${id}`, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const weather = await response.json();
+                document.querySelector(`tr[data-rowid='${weather.id}']`).remove();
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        function row(weather) {
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", weather.id);
+
+            const idTd = document.createElement("td");
+            idTd.append(weather.id);
+            tr.append(idTd);
+
+            const tempTd = document.createElement("td");
+            tempTd.append(weather.temp);
+            tr.append(tempTd);
+
+            const humidityTd = document.createElement("td");
+            humidityTd.append(weather.humidity);
+            tr.append(humidityTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("button");
+            editLink.append("change");
+            editLink.addEventListener("click", async() => await getWeather(weather.id));
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("button");
+            removeLink.append("delete");
+            removeLink.addEventListener("click", async() => await deleteWeather(weather.id));
+            linksTd.append(removeLink);
+
+            tr.append(linksTd);
+
+            const imageTd = document.createElement("img");
+            imageTd.src = weather.imageId;
+            imageTd.width = "50";
+            imageTd.height = "50";
+            tr.append(imageTd);
+
+
+            return tr;
+        }
+
+        getWeathers();
+        
+    </script>
+</body>
+</html>

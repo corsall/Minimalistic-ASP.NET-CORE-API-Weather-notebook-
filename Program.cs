@@ -1,8 +1,5 @@
 using MinimalisticWeatherAPI;
-using System;
-using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);

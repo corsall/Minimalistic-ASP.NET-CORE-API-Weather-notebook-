@@ -3,13 +3,10 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
+
 var app = builder.Build();
 
-string Datapath = "Data/weatherData.json";
-
-List<Weather>? weatherList = new List<Weather>();
-
-await ReadWeatherList();
+using var db = new WeatherContext();
 
 app.Run(async (context) =>
 {
@@ -59,6 +56,7 @@ app.Run();
 
 async Task GetAllWeather(HttpResponse response)
 {
+    var weatherList = db.Weather.ToList();
     if (weatherList?.Count > 0)
         await response.WriteAsJsonAsync(weatherList.ToArray());
     else
@@ -70,7 +68,7 @@ async Task GetAllWeather(HttpResponse response)
 
 async Task GetWeather(string? id, HttpResponse response)
 {
-    Weather? weather = weatherList?.FirstOrDefault((x) => x.Id == id);
+    Weather? weather = db.Weather.FirstOrDefault((x) => x.Id == id);
     if (weather != null)
         await response.WriteAsJsonAsync(weather);
     else
@@ -87,8 +85,8 @@ async Task CreateWeather(HttpRequest request, HttpResponse response)
     {
         weather.Id = Guid.NewGuid().ToString();
         weather.ImageId = GetWeatherImage(weather);
-        weatherList?.Add(weather);
-        await UpdateWeatherList();
+        db.Weather.Add(weather);
+        db.SaveChanges();
         await response.WriteAsJsonAsync(weather);
     }
     else
@@ -100,11 +98,11 @@ async Task CreateWeather(HttpRequest request, HttpResponse response)
 
 async Task DeleteWeather(string? id, HttpResponse response)
 {
-    Weather? weather = weatherList?.FirstOrDefault(x => x.Id == id);
+    Weather? weather = db.Weather.FirstOrDefault(x => x.Id == id);
     if(weather != null)
     {
-        weatherList?.Remove(weather);
-        await UpdateWeatherList();
+        db.Remove(weather);
+        db.SaveChanges();
         await response.WriteAsJsonAsync(weather);
     }
     else
@@ -119,14 +117,13 @@ async Task UpdateWeather(HttpResponse response, HttpRequest request)
     Weather? weather = await request.ReadFromJsonAsync<Weather>();
     if (weather != null)
     {
-        Weather? w = weatherList?.FirstOrDefault(x => x.Id == weather.Id);
+        Weather? w = db.Weather.FirstOrDefault(x => x.Id == weather.Id);
         if(w != null)
         {
 
             w.Temp = weather.Temp;
             w.Humidity = weather.Humidity;
             await response.WriteAsJsonAsync(w);
-            await UpdateWeatherList();
         }
     }
     else
@@ -136,40 +133,6 @@ async Task UpdateWeather(HttpResponse response, HttpRequest request)
     }
 }
 
-async Task ReadWeatherList()
-{
-    using (FileStream fs = new FileStream(Datapath, FileMode.OpenOrCreate))
-    {
-        if(fs.Length > 0)
-        {
-            weatherList = await JsonSerializer.DeserializeAsync<List<Weather>>(fs);
-        }
-        if (weatherList != null)
-        {
-            foreach (var w in weatherList)
-            {
-                if (w.Id == "")
-                {
-                    w.Id = Guid.NewGuid().ToString();
-                }
-                if (w.ImageId == "")
-                {
-                    w.ImageId = GetWeatherImage(w);
-                }
-            }
-        }
-    }
-}
-async Task UpdateWeatherList()
-{
-    using (FileStream fs = new FileStream(Datapath, FileMode.Truncate))
-    {
-        if(weatherList != null)
-        {
-            await JsonSerializer.SerializeAsync<List<Weather>>(fs, weatherList);
-        }
-    }
-}
 
 string GetWeatherImage(Weather w)
 {
